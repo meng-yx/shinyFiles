@@ -35,6 +35,7 @@ Imports:
 Collate:
     'aaa.R'
     'filechoose.R'
+    'filechoose_tree.R'
     'dirchoose.R'
     'filesave.R'
     'shinyFiles-package.R'
