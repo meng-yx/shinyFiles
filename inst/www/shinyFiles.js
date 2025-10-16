@@ -607,11 +607,12 @@ var shinyFiles = (function () {
   };
 
   var initializeButton = function (button) {
-    var type = $(button).hasClass('shinyDirectories') ? 'directory' : 'file';
+    var type = $(button).hasClass('shinyDirectories') ? 'directory' : 
+               $(button).hasClass('shinyFilesTree') ? 'tree' : 'file';
     var sort = $(button).data('sort') || 'Name';
     var sortDir = $(button).data('sortDir') || 'ascending';
 
-    if (type == 'file') {
+    if (type == 'file' || type == 'tree') {
       var back = $(button).data('back') || [];
       var forward = $(button).data('forward') || [];
       var view = $(button).data('view') || '';
@@ -633,9 +634,10 @@ var shinyFiles = (function () {
   };
 
   var setDisabledButtons = function (button, modal) {
-    var type = $(button).hasClass('shinyDirectories') ? 'directory' : 'file';
+    var type = $(button).hasClass('shinyDirectories') ? 'directory' : 
+               $(button).hasClass('shinyFilesTree') ? 'tree' : 'file';
 
-    if (type == 'file') {
+    if (type == 'file' || type == 'tree') {
       var back = $(button).data('back').length === 0;
       var forward = $(button).data('forward').length === 0;
       var up = $(modal).find('.sF-breadcrumps>option').length <= 1;
@@ -647,10 +649,13 @@ var shinyFiles = (function () {
   };
 
   var filesSelected = function (modal) {
-    var type = $($(modal).data('button')).hasClass('shinyDirectories') ? 'directory' : 'file';
+    var type = $($(modal).data('button')).hasClass('shinyDirectories') ? 'directory' : 
+               $($(modal).data('button')).hasClass('shinyFilesTree') ? 'tree' : 'file';
 
     if (type == 'file') {
       return modal.find('.sF-fileList').children().filter('.sF-file.selected').length > 0;
+    } else if (type == 'tree') {
+      return modal.find('.sF-treeList').find('.sF-file.selected').length > 0;
     } else {
       return modal.find('.sF-dirList').find('.selected').length > 0;
     }
@@ -661,10 +666,13 @@ var shinyFiles = (function () {
   };
 
   var sortFiles = function (modal, attribute, direction) {
-    var type = $($(modal).data('button')).hasClass('shinyDirectories') ? 'directory' : 'file';
+    var type = $($(modal).data('button')).hasClass('shinyDirectories') ? 'directory' : 
+               $($(modal).data('button')).hasClass('shinyFilesTree') ? 'tree' : 'file';
     var fileList;
     if (type == 'file') {
       fileList = $(modal).find('.sF-fileList');
+    } else if (type == 'tree') {
+      fileList = $(modal).find('.sF-treeList');
     } else {
       fileList = $(modal).find('.sF-dirContent');
     }
@@ -722,9 +730,10 @@ var shinyFiles = (function () {
   };
 
   var selectFiles = function (button, modal) {
-    var type = $(button).hasClass('shinyDirectories') ? 'directory' : 'file';
+    var type = $(button).hasClass('shinyDirectories') ? 'directory' : 
+               $(button).hasClass('shinyFilesTree') ? 'tree' : 'file';
 
-    if (type == 'file') {
+    if (type == 'file' || type == 'tree') {
       var files = getSelectedFiles(modal);
       $(button).data('files', files)
         .trigger('selection', [files])
@@ -1205,15 +1214,41 @@ var shinyFiles = (function () {
 
   var getSelectedFiles = function (modal) {
     var directory = getCurrentDirectory(modal);
+    var button = $(modal).data('button');
+    var type = $(button).hasClass('shinyDirectories') ? 'directory' : 
+               $(button).hasClass('shinyFilesTree') ? 'tree' : 'file';
 
-    return {
-      files: modal.find('.sF-fileList').find('.selected .sF-file-name div').map(function () {
-        var dirCopy = directory.path.slice();
-        dirCopy.push($(this).text());
-        return [dirCopy];
-      }),
-      root: directory.root
-    };
+    if (type == 'tree') {
+      // For tree, we need to build the full path by traversing up the tree
+      var selectedFiles = modal.find('.sF-treeList').find('.sF-file.selected');
+      return {
+        files: selectedFiles.map(function () {
+          var path = [];
+          var filename = $(this).find('.sF-file-name div').text();
+          path.push(filename);
+          
+          // Traverse up the tree to build the full path
+          var parent = $(this).parent('.sF-content').parent('.sF-directory');
+          while (parent.length > 0 && !parent.hasClass('root')) {
+            var dirName = parent.children('.sF-file-name').children('div').text();
+            path.unshift(dirName);
+            parent = parent.parent('.sF-content').parent('.sF-directory');
+          }
+          
+          return [path];
+        }),
+        root: modal.data('currentData').selectedRoot
+      };
+    } else {
+      return {
+        files: modal.find('.sF-fileList').find('.selected .sF-file-name div').map(function () {
+          var dirCopy = directory.path.slice();
+          dirCopy.push($(this).text());
+          return [dirCopy];
+        }),
+        root: directory.root
+      };
+    }
   };
 
   var getCurrentDirectory = function (modal) {
@@ -2574,6 +2609,14 @@ var shinyFiles = (function () {
     Shiny.addCustomMessageHandler('shinySave-refresh', function (data) {
       populateFileChooser($('.shinySave#' + data.id), parseFiles(data.dir), true);
     });
+    Shiny.addCustomMessageHandler('shinyFilesTree', function (data) {
+      console.log('Received shinyFilesTree data:', data);
+      populateTreeChooser($('.shinyFilesTree#' + data.id), data.dir);
+    });
+    Shiny.addCustomMessageHandler('shinyFilesTree-refresh', function (data) {
+      console.log('Received shinyFilesTree-refresh data:', data);
+      populateTreeChooser($('.shinyFilesTree#' + data.id), data.dir);
+    });
 
     $(document).on('click', '.shinyFiles', function (e) {
       createFileChooser(this, $(this).data('title'));
@@ -2589,6 +2632,13 @@ var shinyFiles = (function () {
 
     $(document).on('click', '.shinySave', function (e) {
       createFileSaver(this, $(this).data('title'));
+    }).on('click', function (e) {
+      $('.sF-modal .open').removeClass('open').find('button').removeClass('active');
+    });
+
+    $(document).on('click', '.shinyFilesTree', function (e) {
+      e.preventDefault();
+      sF.treeFileChooser(this);
     }).on('click', function (e) {
       $('.sF-modal .open').removeClass('open').find('button').removeClass('active');
     });
@@ -2666,6 +2716,543 @@ var shinyFiles = (function () {
         $("#sF-cancelButton").click();
       }
     });
+  };
+
+  // Tree file chooser functionality
+  sF.treeFileChooser = function (button) {
+    console.log('Creating tree file chooser modal');
+    var title = $(button).attr('data-title');
+    var multiple = $(button).attr('data-selecttype') == 'multiple';
+    var single = !multiple;
+
+    $(button).prop('disabled', true);
+
+    initializeButton(button);
+
+    // Creating modal with tree structure
+    var modal = $('<div>', { id: $(button).attr('id') + '-modal' }).addClass('sF-modalContainer modal fade').css('display', 'block').append(
+      $('<div>').addClass('sF-modal modal-dialog modal-lg').append(
+        $('<div>').addClass('modal-content').append(
+          $('<div>').addClass('modal-header').append(
+            $('<h4>', { text: title }).addClass('sF-title modal-title')
+          ).append(
+            $('<button>', { html: '&times;', type: 'button' }).addClass('close')
+          )
+        ).append(
+          $('<div>').addClass('modal-body').append(
+            $('<div>').addClass('sF-navigation btn-toolbar').append(
+              $('<div>').addClass('btn-group btn-group-sm sF-navigate').append(
+                $('<button>', { id: 'sF-btn-back' }).addClass('btn btn-default').append(
+                  $('<span>').addClass('glyphicon glyphicon-chevron-left')
+                )
+              ).append(
+                $('<button>', { id: 'sF-btn-up' }).addClass('btn btn-default').append(
+                  $('<span>').addClass('glyphicon glyphicon-arrow-up')
+                )
+              ).append(
+                $('<button>', { id: 'sF-btn-forward' }).addClass('btn btn-default').append(
+                  $('<span>').addClass('glyphicon glyphicon-chevron-right')
+                )
+              )
+            ).append(
+              $('<div>').addClass('btn-group btn-group-sm sF-sort-tree').append(
+                $('<button>', { id: 'sF-btn-sort-tree', title: 'Toggle sort order (A-Z / Z-A)' }).addClass('btn btn-default').attr('data-sort-dir', 'asc').append(
+                  $('<span>').addClass('glyphicon glyphicon-sort-by-alphabet')
+                ).append(
+                  $('<span>').addClass('sF-sort-label').text(' A-Z')
+                )
+              )
+            ).append(
+              $('<div>').addClass('sF-refresh btn-group btn-group-sm').append(
+                $('<button>', { id: 'sF-btn-refresh' }).addClass('btn btn-default').append(
+                  $('<span>').addClass('glyphicon glyphicon-refresh')
+                )
+              )
+            ).append(
+              $('<select>').addClass('sF-breadcrumps form-control input-sm')
+            )
+          ).append(
+            $('<div>').addClass('sF-treeWindow').append(
+              $('<div>').addClass('sF-treeInfo col-md-12').append(
+                $('<h6>', { text: 'Files and Folders' })
+              ).append(
+                $('<div>').append(
+                  $('<div>').addClass('sF-treeList').append(
+                    $('<div>')
+                  )
+                )
+              )
+            )
+          )
+        ).append(
+          $('<div>').addClass('sF-responseButtons modal-footer').append(
+            $('<button>', { text: 'Cancel', type: 'button', id: 'sF-cancelButton' }).addClass('btn btn-default')
+          ).append(
+            $('<button>', { text: 'Select', type: 'button', id: 'sF-selectButton' }).addClass('btn btn-primary')
+          )
+        )
+      )
+    ).appendTo($('body'));
+
+    var backdrop = $('<div>')
+      .addClass('sF-modalBackdrop modal-backdrop fade')
+      .appendTo($('body'));
+
+    // HANDLER BINDING
+
+    // Dismissers and selecters
+    modal.find('.modal-header button.close').on('click', function () {
+      dismissFileChooser(button, modal)
+    })
+
+    modal.find('#sF-cancelButton').on('click', function () {
+      dismissFileChooser(button, modal)
+    })
+
+    modal.find('#sF-selectButton').on('click', function () {
+      selectFiles(button, modal);
+    })
+
+    // Navigation
+    modal.find('#sF-btn-back').on('click', function (e) {
+      e.preventDefault();
+      navigateBack(button, modal);
+    })
+
+    modal.find('#sF-btn-up').on('click', function (e) {
+      e.preventDefault();
+      navigateUp(button, modal);
+    })
+
+    modal.find('#sF-btn-forward').on('click', function (e) {
+      e.preventDefault();
+      navigateForward(button, modal);
+    })
+
+    // Sort toggle for tree
+    modal.find('#sF-btn-sort-tree').on('click', function (e) {
+      e.preventDefault();
+      var btn = $(this);
+      var currentDir = btn.attr('data-sort-dir');
+      var newDir = currentDir === 'asc' ? 'desc' : 'asc';
+      
+      btn.attr('data-sort-dir', newDir);
+      btn.find('.sF-sort-label').text(newDir === 'asc' ? ' A-Z' : ' Z-A');
+      btn.find('.glyphicon').toggleClass('glyphicon-sort-by-alphabet', newDir === 'asc')
+        .toggleClass('glyphicon-sort-by-alphabet-alt', newDir === 'desc');
+      
+      // Sort the tree
+      sortTreeFiles(modal, newDir);
+    })
+
+    // Refresh
+    modal.find('.sF-refresh').on('click', function (e) {
+      e.preventDefault();
+      refreshDirectory(modal);
+    })
+
+    // Tree window
+    modal.find('.sF-treeList')
+      .on('click', '.sF-expander>span', function (e) {
+        toggleExpander($(this), modal, button);
+      })
+      .on('click', '.sF-directory>.sF-file-icon, .sF-directory>.sF-file-name', function (e) {
+        // Click on directory icon or name
+        selectFolder($(this), modal, button);
+      })
+      .on('click', '.sF-file', function (e) {
+        // Click on file element
+        e.stopPropagation(); // Prevent event bubbling
+        console.log('File clicked:', $(this));
+        
+        var treeList = modal.find('.sF-treeList');
+        var lastSelectedElement = treeList.data('lastElement');
+        
+        if (single || (!e.metaKey && !e.ctrlKey && !e.shiftKey)) {
+          // Single selection or normal click without modifier keys
+          treeList.find('.sF-file').removeClass('selected');
+          $(this).addClass('selected');
+        } else if (e.metaKey || e.ctrlKey) {
+          // Ctrl/Cmd+Click: toggle selection
+          $(this).toggleClass('selected');
+        } else if (e.shiftKey && lastSelectedElement) {
+          // Shift+Click: select range (simplified for tree structure)
+          var allFiles = treeList.find('.sF-file');
+          var startIndex = allFiles.index(lastSelectedElement);
+          var endIndex = allFiles.index(this);
+          
+          if (startIndex > endIndex) {
+            var temp = startIndex;
+            startIndex = endIndex;
+            endIndex = temp;
+          }
+          
+          treeList.find('.sF-file').removeClass('selected');
+          for (var i = startIndex; i <= endIndex; i++) {
+            $(allFiles[i]).addClass('selected');
+          }
+        }
+        
+        treeList.data('lastElement', this);
+        toggleSelectButton(modal);
+      })
+      .on('dblclick', '.sF-file', function (event) {
+        var single = $(button).data('selecttype') == 'single';
+        elementSelector(event, this, single, true);
+        selectFiles(button, modal);
+      })
+
+    // Breadcrumbs
+    modal.find('.sF-breadcrumps').on('change', function () {
+      changeVolume($(this).val(), modal);
+    })
+
+    // Keyboard navigation
+    modal.on('keydown', function (e) {
+      var modal = $('.sF-modalContainer');
+      var button = $(modal.data('button'));
+      var fileFlag = button.hasClass('shinyFiles');
+      var saveFlag = button.hasClass('shinySave');
+      var dirFlag = button.hasClass('shinyDirectories');
+      var treeFlag = button.hasClass('shinyFilesTree');
+
+      if (fileFlag || saveFlag || treeFlag) {
+        switch (e.which) {
+          case 38: // up
+            e.preventDefault();
+            moveSelection(e, single, 'up');
+            break;
+          case 40: // down
+            e.preventDefault();
+            moveSelection(e, single, 'down');
+            break;
+          case 37: // left
+            e.preventDefault();
+            moveSelection(e, single, 'left');
+            break;
+          case 39: // right
+            e.preventDefault();
+            moveSelection(e, single, 'right');
+            break;
+          case 13: // enter
+            e.preventDefault();
+            if (fileFlag || saveFlag) {
+              selectFiles(button, modal);
+            } else if (treeFlag) {
+              if ($($(".sF-treeList").data('lastElement')).hasClass('sF-directory')) {
+                openDir(modalButton, $(".sF-modalContainer"), $($(".sF-treeList").data('lastElement')));
+              } else {
+                selectFiles(button, modal);
+              }
+            }
+            break;
+        }
+      }
+    });
+
+    // Close modal when clicking on backdrop
+    $(document).on('click', '.sF-modalContainer', function (e) {
+      if (!$(e.target).closest('.modal-content').length > 0 && $("#sF-cancelButton").is(":visible")) {
+        dismissFileChooser($(this).data('button'), $(this));
+      }
+    });
+
+    modal.data('backdrop', backdrop);
+    modal.data('button', button);
+    $(button).data('modal', modal);
+
+    modal.data('currentData', {});
+    modal.data('history', []);
+    modal.data('historyIndex', -1);
+
+    // Show the modal with fade-in animation
+    setTimeout(function () {
+      console.log('Showing tree modal');
+      if ($('#shiny-modal').length > 0) {
+        modal.detach().appendTo('#shiny-modal')
+      }
+      modal.addClass('in');
+      backdrop.addClass('in');
+      console.log('Modal should now be visible');
+    }, 1);
+
+    populateTreeChooser(button, $(button).data('dataCache'));
+    console.log('Tree chooser created, waiting for data from server');
+  };
+
+  // Tree-specific functions
+  var sortTreeFiles = function (modal, direction) {
+    var treeList = modal.find('.sF-treeList');
+    
+    // Sort all file and directory elements recursively
+    function sortElements(container) {
+      // Get all direct children (directories and files)
+      var directories = container.children('.sF-directory');
+      var files = container.children('.sF-file');
+      
+      // Sort directories
+      var sortedDirs = directories.sort(function(a, b) {
+        var nameA = $(a).find('> .sF-file-name div').first().text().toLowerCase();
+        var nameB = $(b).find('> .sF-file-name div').first().text().toLowerCase();
+        return direction === 'asc' ? 
+          (nameA < nameB ? -1 : nameA > nameB ? 1 : 0) :
+          (nameA > nameB ? -1 : nameA < nameB ? 1 : 0);
+      });
+      
+      // Sort files
+      var sortedFiles = files.sort(function(a, b) {
+        var nameA = $(a).find('.sF-file-name div').text().toLowerCase();
+        var nameB = $(b).find('.sF-file-name div').text().toLowerCase();
+        return direction === 'asc' ? 
+          (nameA < nameB ? -1 : nameA > nameB ? 1 : 0) :
+          (nameA > nameB ? -1 : nameA < nameB ? 1 : 0);
+      });
+      
+      // Detach all and reappend in sorted order
+      directories.detach();
+      files.detach();
+      sortedDirs.each(function() {
+        container.append($(this));
+      });
+      sortedFiles.each(function() {
+        container.append($(this));
+      });
+      
+      // Recursively sort contents of expanded directories
+      sortedDirs.each(function() {
+        var content = $(this).children('.sF-content');
+        if (content.length > 0 && $(this).hasClass('expanded')) {
+          sortElements(content);
+        }
+      });
+    }
+    
+    // Sort from root
+    var rootContent = treeList.find('> .sF-directory.root > .sF-content');
+    if (rootContent.length > 0) {
+      sortElements(rootContent);
+    }
+    
+    console.log('Tree sorted:', direction);
+  };
+
+  var updateTreeWithFiles = function (element, tree, selectPath) {
+    if (tree.name === undefined) return;
+
+    if (element.length === 0) {
+      element = $('<div>').addClass('sF-directory').append(
+        $('<div>').addClass('sF-expander').append(
+          $('<span>').addClass('glyphicon glyphicon-chevron-right')
+        )
+      ).append(
+        $('<div>').addClass('sF-file-icon')
+      ).append(
+        $('<div>').addClass('sF-file-name').append(
+          $('<div>', { text: tree.name })
+        )
+      ).append(
+        $('<div>').addClass('sF-content')
+      );
+    }
+
+    if (!tree.expanded) {
+      element.children('.sF-content').children().remove();
+    } else {
+      var parent = element.children('.sF-content');
+      var children = parent.children();
+      var oldChildren = [];
+      var removedChildren = [];
+      
+      // Update directories
+      children.each(function (index) {
+        var childElem = $(this);
+        var childName = childElem.children('.sF-file-name').children().text();
+        var remove = true;
+        for (var i = 0; i < tree.children.length; i++) {
+          if (tree.children[i] != null && childName == tree.children[i].name) {
+            updateTreeWithFiles(childElem, tree.children[i], selectPath);
+            remove = false;
+            break;
+          }
+        }
+        if (remove) {
+          removedChildren.push(childElem);
+        }
+      });
+
+      removedChildren.forEach(function (child) {
+        child.addClass('removing');
+        setTimeout(function () {
+          child.remove();
+        }, 2000);
+      });
+
+      // Add new directories
+      tree.children.forEach(function (child) {
+        var exists = false;
+        children.each(function () {
+          if ($(this).children('.sF-file-name').children().text() == child.name) {
+            exists = true;
+          }
+        });
+        if (!exists) {
+          var newElement = $('<div>').addClass('sF-directory').append(
+            $('<div>').addClass('sF-expander').append(
+              $('<span>').addClass('glyphicon glyphicon-chevron-right')
+            )
+          ).append(
+            $('<div>').addClass('sF-file-icon')
+          ).append(
+            $('<div>').addClass('sF-file-name').append(
+              $('<div>', { text: child.name })
+            )
+          ).append(
+            $('<div>').addClass('sF-content')
+          );
+          parent.append(newElement);
+          updateTreeWithFiles(newElement, child, selectPath);
+        }
+      });
+
+      // Remove old files first (they will be re-added)
+      parent.children('.sF-file').remove();
+      
+      // Add files
+      if (tree.files && tree.files.length > 0) {
+        tree.files.forEach(function (file) {
+          var ext = file.extension || '';
+          var fileElement = $('<div>').addClass('sF-file').append(
+            $('<div>').addClass('sF-file-icon').addClass('sF-filetype-' + ext)
+          ).append(
+            $('<div>').addClass('sF-file-name').append(
+              $('<div>', { text: file.filename })
+            )
+          );
+          parent.append(fileElement);
+        });
+      }
+    }
+
+    if (tree.empty) {
+      element.addClass('empty');
+    } else {
+      element.removeClass('empty');
+    }
+
+    if (tree.expanded) {
+      element.addClass('expanded');
+    } else {
+      element.removeClass('expanded');
+    }
+  };
+
+  // Populate tree chooser with data
+  var populateTreeChooser = function (button, data) {
+    var modal = $(button).data('modal');
+
+    $(button).data('dataCache', data);
+
+    if (!modal) {
+      console.log('No modal found for tree chooser');
+      return;
+    }
+    
+    if (!data) {
+      console.log('No data yet for tree chooser, waiting for server response');
+      return;
+    }
+
+    console.log('Populating tree chooser with data:', data);
+
+    modal.data('currentData', data);
+
+    var treeContainer = modal.find('.sF-treeList');
+    
+    // Save currently selected file paths before clearing
+    var selectedPaths = [];
+    treeContainer.find('.sF-file.selected').each(function() {
+      var path = [];
+      var filename = $(this).find('.sF-file-name div').text();
+      path.push(filename);
+      
+      var parent = $(this).parent('.sF-content').parent('.sF-directory');
+      while (parent.length > 0 && !parent.hasClass('root')) {
+        var dirName = parent.children('.sF-file-name').children('div').text();
+        path.unshift(dirName);
+        parent = parent.parent('.sF-content').parent('.sF-directory');
+      }
+      
+      selectedPaths.push(path.join('/'));
+    });
+    
+    console.log('Preserving selections:', selectedPaths);
+    
+    treeContainer.children().remove(); // Clear existing content
+    
+    if (data.tree) {
+      // Create the root directory element
+      var dirTree = $('<div>').addClass('sF-directory root expanded').append(
+        $('<div>').addClass('sF-expander').append(
+          $('<span>').addClass('glyphicon glyphicon-chevron-right')
+        )
+      ).append(
+        $('<div>').addClass('sF-file-icon')
+      ).append(
+        $('<div>').addClass('sF-file-name').append(
+          $('<div>', { text: data.selectedRoot })
+        )
+      ).append(
+        $('<div>').addClass('sF-content')
+      );
+      
+      treeContainer.append(dirTree);
+      
+      // Set the tree as expanded by default
+      data.tree.expanded = true;
+      
+      console.log('Tree structure:', data.tree);
+      console.log('Tree has children:', data.tree.children ? data.tree.children.length : 0);
+      console.log('Tree has files:', data.tree.files ? data.tree.files.length : 0);
+      
+      updateTreeWithFiles(dirTree, data.tree, data.contentPath);
+      
+      // Restore selections after tree is updated
+      if (selectedPaths.length > 0) {
+        console.log('Restoring selections:', selectedPaths);
+        treeContainer.find('.sF-file').each(function() {
+          var path = [];
+          var filename = $(this).find('.sF-file-name div').text();
+          path.push(filename);
+          
+          var parent = $(this).parent('.sF-content').parent('.sF-directory');
+          while (parent.length > 0 && !parent.hasClass('root')) {
+            var dirName = parent.children('.sF-file-name').children('div').text();
+            path.unshift(dirName);
+            parent = parent.parent('.sF-content').parent('.sF-directory');
+          }
+          
+          var fullPath = path.join('/');
+          if (selectedPaths.indexOf(fullPath) !== -1) {
+            $(this).addClass('selected');
+          }
+        });
+      }
+    }
+
+    var breadcrumps = modal.find('.sF-breadcrumps')
+    breadcrumps.find('option, optgroup').remove();
+
+    var rootList = $('<optgroup>', { label: 'Volumes' }).appendTo(breadcrumps);
+    if (data.rootNames) {
+      data.rootNames.forEach(function (d) {
+        $('<option>', { value: d, text: d }).appendTo(rootList);
+      });
+    }
+
+    breadcrumps.val(data.selectedRoot);
+
+    setDisabledButtons(button, modal);
+    toggleSelectButton(modal);
   };
 
   return sF;
