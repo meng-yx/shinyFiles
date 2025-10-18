@@ -47,7 +47,21 @@ traverseDirs <- function(tree, root, restrictions, hidden) {
     files <- files[keep]
   }
 
-  folders <- path_file(files[fs::dir_exists(files)])
+  # Check which files are directories, handling permission errors for individual files
+  if (length(files) > 0) {
+    is_dir_result <- sapply(files, function(f) {
+      tryCatch({
+        fs::dir_exists(f)
+      }, error = function(e) {
+        # If there's a permission error for this specific file, return FALSE
+        # This prevents the app from crashing when accessing restricted directories
+        FALSE
+      })
+    })
+    folders <- path_file(files[is_dir_result])
+  } else {
+    folders <- character(0)
+  }
 
   if (length(folders) == 0) {
     tree$empty <- TRUE

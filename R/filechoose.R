@@ -103,7 +103,20 @@ fileGetter <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) 
     fileInfo <- suppressWarnings(file_info(files, fail = FALSE))
     fileInfo$filename <- path_file(files)
     fileInfo$extension <- tolower(path_ext(files))
-    fileInfo$isdir <- fs::dir_exists(files)
+    # Check which files are directories, handling permission errors for individual files
+    if (length(files) > 0) {
+      fileInfo$isdir <- sapply(files, function(f) {
+        tryCatch({
+          fs::dir_exists(f)
+        }, error = function(e) {
+          # If there's a permission error for this specific file, return FALSE
+          # This prevents the app from crashing when accessing restricted directories
+          FALSE
+        })
+      })
+    } else {
+      fileInfo$isdir <- logical(0)
+    }
     fileInfo$mtime <- as.integer(fileInfo$modification_time) * 1000
     fileInfo$ctime <- as.integer(fileInfo$birth_time) * 1000
     fileInfo$atime <- as.integer(fileInfo$access_time) * 1000
