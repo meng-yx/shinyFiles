@@ -17,6 +17,7 @@ This changelog documents the modifications made to the shinyFiles package to add
 - **Larger modal interface**: Increased modal height to 90% viewport height for better usability
 - **Compact modal header**: Reduced header height and padding for more content space
 - **Fixed root directory bug**: Corrected issue where switching root directories caused incorrect absolute paths for previously selected directories
+- **Optimized server updates**: Shiny server is only updated when user clicks "Done", not on every "Add Directory" action
 
 ```css
 /* bslib compatibility fixes */
@@ -106,6 +107,21 @@ This changelog documents the modifications made to the shinyFiles package to add
   {path: ['folder2'], root: 'D:'}   // Correctly uses D: drive
 ]
 ```
+
+#### 0.4 Performance Optimization: Deferred Server Updates
+**Problem**: Previously, every "Add Directory" click immediately triggered a Shiny server update, causing unnecessary network traffic and potential performance issues when users selected many directories.
+
+**Solution**:
+- **Deferred updates**: Shiny server is only updated when user clicks "Done" button
+- **Local state management**: All selections are managed locally in JavaScript until finalization
+- **Improved UX**: Users can add/remove directories without triggering server-side processing
+- **Better performance**: Reduces server load and network traffic during selection process
+
+**Behavior**:
+- ✅ **Add Directory**: Updates local display only, no server communication
+- ✅ **Remove Directory**: Updates local display only, no server communication  
+- ✅ **Done Button**: Sends final selection list to Shiny server
+- ✅ **Cancel/Close**: Discards all selections, no server update
 
 ### 1. R Code Modifications (`R/dirchoose.R`)
 

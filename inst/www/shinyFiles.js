@@ -787,12 +787,8 @@ var shinyFiles = (function () {
         $(button).data('selectedDirectories', cleanedSelections);
         updateSelectedDirectoriesDisplay(modal, cleanedSelections);
         
-        // Update the input
-        var data = {
-          files: cleanedSelections,
-          root: $(modal).data('currentData').selectedRoot
-        };
-        Shiny.onInputChange($(button).attr('id'), data);
+        // Don't update Shiny server yet - wait for "Done" button
+        // The server will be updated when user clicks "Done"
       });
     }
   };
@@ -854,12 +850,8 @@ var shinyFiles = (function () {
             // Trigger selection event with current list
             $(button).trigger('selection', [currentSelections]);
             
-            // Update the input with current selections
-            var data = {
-              files: currentSelections,
-              root: $(modal).data('currentData').selectedRoot
-            };
-            Shiny.onInputChange($(button).attr('id'), data);
+            // Don't update Shiny server yet - wait for "Done" button
+            // The server will be updated when user clicks "Done"
             
             // Clear the current selection after adding
             modal.find('.sF-dirList .selected').removeClass('selected');
