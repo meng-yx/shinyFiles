@@ -14,7 +14,8 @@
 .sF-modal .modal-content {
   overflow: auto;
   min-width: 276px;
-  max-height: calc(100vh - 45px);
+  height: 100vh;
+  max-height: 100vh;
 }
 .sF-navigation {
   margin-bottom: 5px;
@@ -62,6 +63,26 @@
   gap: 5px !important;
 }
 
+/* Compact modal header */
+.sF-modal .modal-header {
+  padding: 8px 15px !important;
+  min-height: auto !important;
+}
+
+.sF-modal .modal-title {
+  font-size: 16px !important;
+  line-height: 1.2 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.sF-modal .modal-header .close {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+}
+
 .sF-navigation .btn-group {
   flex-shrink: 0 !important;
   margin-right: 0 !important;
@@ -100,14 +121,40 @@
 /* Fix modal content spacing */
 .sF-selected-directories {
   font-size: 12px !important;
+  max-height: 150px !important;
+  overflow-y: auto !important;
+  border: 1px solid #ddd !important;
+  border-radius: 4px !important;
+  background-color: #f9f9f9 !important;
 }
 
 .sF-selected-directories ul {
   margin-bottom: 0 !important;
+  padding-left: 15px !important;
 }
 
 .sF-selected-directories li {
   margin-bottom: 2px !important;
+  word-break: break-all !important;
+}
+
+/* Custom scrollbar for selected directories */
+.sF-selected-directories::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.sF-selected-directories::-webkit-scrollbar-track {
+  background: #f1f1f1 !important;
+  border-radius: 3px !important;
+}
+
+.sF-selected-directories::-webkit-scrollbar-thumb {
+  background: #c1c1c1 !important;
+  border-radius: 3px !important;
+}
+
+.sF-selected-directories::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8 !important;
 }
 
 .sF-fileList>div.selected .sF-file-name div,

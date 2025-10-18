@@ -13,6 +13,9 @@ This changelog documents the modifications made to the shinyFiles package to add
 - **Enhanced breadcrumbs positioning**: Uses flexbox for responsive layout
 - **Added `!important` declarations**: Protects styling from bslib theme overrides
 - **Improved selected directories display**: Better spacing and typography
+- **Scrollable selected directories list**: Limited height with custom scrollbar for better UX
+- **Larger modal interface**: Increased modal height to 90% viewport height for better usability
+- **Compact modal header**: Reduced header height and padding for more content space
 
 ```css
 /* bslib compatibility fixes */
@@ -37,6 +40,39 @@ This changelog documents the modifications made to the shinyFiles package to add
   font-size: 10px !important;
   line-height: 1.2 !important;
   height: auto !important;
+}
+
+/* Scrollable selected directories list */
+.sF-selected-directories {
+  max-height: 150px !important;
+  overflow-y: auto !important;
+  border: 1px solid #ddd !important;
+  border-radius: 4px !important;
+  background-color: #f9f9f9 !important;
+}
+
+/* Larger modal interface */
+.sF-modal .modal-content {
+  height: 90vh !important;
+  max-height: 90vh !important;
+}
+
+.sF-fileWindow, .sF-dirWindow {
+  height: 70vh !important;
+  min-height: 70vh !important;
+}
+
+/* Compact modal header */
+.sF-modal .modal-header {
+  padding: 8px 15px !important;
+  min-height: auto !important;
+}
+
+.sF-modal .modal-title {
+  font-size: 16px !important;
+  line-height: 1.2 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 ```
 
