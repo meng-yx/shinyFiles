@@ -5,6 +5,47 @@ This changelog documents the modifications made to the shinyFiles package to add
 
 ## Changes Made
 
+### 0. bslib Compatibility Enhancements (`inst/www/styles.css`)
+
+#### 0.1 Built-in bslib Theme Support
+- **Added flexbox toolbar layout**: Prevents dropdown menu wrapping to second row
+- **Fixed modal button sizing**: Ensures proper sizing with bslib themes
+- **Enhanced breadcrumbs positioning**: Uses flexbox for responsive layout
+- **Added `!important` declarations**: Protects styling from bslib theme overrides
+- **Improved selected directories display**: Better spacing and typography
+
+```css
+/* bslib compatibility fixes */
+.sF-navigation {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.sF-breadcrumps {
+  flex: 1 1 auto !important;
+  min-width: 120px !important;
+  max-width: 200px !important;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+}
+
+/* Fix modal button sizing for bslib */
+.sF-remove-dir {
+  padding: 1px 4px !important;
+  font-size: 10px !important;
+  line-height: 1.2 !important;
+  height: auto !important;
+}
+```
+
+#### 0.2 Benefits
+- **No custom CSS required**: Works seamlessly with bslib themes out of the box
+- **Responsive design**: Toolbar adapts to different modal widths
+- **Professional appearance**: Consistent with modern Shiny app styling
+- **Backward compatibility**: Existing apps continue to work unchanged
+
 ### 1. R Code Modifications (`R/dirchoose.R`)
 
 #### 1.1 Enhanced `shinyDirButton()` Function
@@ -43,6 +84,12 @@ parseDirPath(roots, selection)  # Returns: c("/path/to/dir1", "/path/to/dir2", "
 - **Replaced `file.exists()` with `fs::file_exists()`**: Consistent use of `fs` package functions
 - **Replaced `path()` with `fs::path()`**: Proper namespace usage
 
+#### 1.5 Added Error Handling for Permission Issues
+- **Windows permission errors**: Added graceful handling for `[EPERM]` errors when accessing restricted directories
+- **`dir_ls()` error handling**: Wrapped `dir_ls()` calls in `tryCatch()` to prevent crashes
+- **`dir_exists()` error handling**: Added error handling for directory existence checks
+- **Graceful degradation**: App continues to work even when encountering permission-denied directories
+
 ### 2. JavaScript Modifications (`inst/www/shinyFiles.js`)
 
 #### 2.1 Enhanced `selectFolder()` Function
@@ -55,12 +102,22 @@ parseDirPath(roots, selection)  # Returns: c("/path/to/dir1", "/path/to/dir2", "
 - **Individual remove buttons**: Each selected directory has its own "Remove" button
 - **Dynamic updates**: List updates in real-time as directories are added/removed
 - **User-friendly interface**: Clear indication of selection count and directory paths
+- **Deduplication display**: Shows only unique directories in the display (even if duplicates exist in data)
+- **Smart indexing**: Maintains correct remove button functionality despite deduplication
+
+#### 2.2.1 New `showDuplicateSelectionNotification()` Function
+- **User feedback**: Shows warning notification when duplicate directory is selected
+- **Non-intrusive**: Auto-dismisses after 3 seconds
+- **Clear messaging**: Explains that directory is already selected
+- **Bootstrap styling**: Consistent with modal design
 
 #### 2.3 Enhanced `selectFiles()` Function
 - **Multiple selection logic**: Handles adding directories to selection list in multiple mode
 - **Modal persistence**: Keeps modal open after adding directories (multiple mode only)
 - **Single selection behavior**: Maintains original behavior for single selection mode
 - **Data management**: Properly manages the `selectedDirectories` data structure
+- **Deduplication logic**: Prevents adding the same directory multiple times
+- **User feedback**: Shows notification when user tries to select duplicate directory
 
 #### 2.4 Dynamic Button Management
 - **Conditional button creation**: Different buttons for single vs multiple selection modes

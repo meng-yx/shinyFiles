@@ -54,6 +54,62 @@
   width: calc(100% - 390px);
 }
 
+/* bslib compatibility fixes */
+.sF-navigation {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.sF-navigation .btn-group {
+  flex-shrink: 0 !important;
+  margin-right: 0 !important;
+  margin-bottom: 5px !important;
+}
+
+.sF-breadcrumps {
+  flex: 1 1 auto !important;
+  min-width: 120px !important;
+  max-width: 200px !important;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+}
+
+.sF-navigation .sF-refresh {
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+  float: none !important;
+}
+
+/* Fix modal button sizing for bslib */
+.sF-remove-dir {
+  padding: 1px 4px !important;
+  font-size: 10px !important;
+  line-height: 1.2 !important;
+  height: auto !important;
+}
+
+/* Ensure modal elements don't get oversized by bslib */
+.sF-modal .btn-xs {
+  padding: 1px 4px !important;
+  font-size: 10px !important;
+  line-height: 1.2 !important;
+}
+
+/* Fix modal content spacing */
+.sF-selected-directories {
+  font-size: 12px !important;
+}
+
+.sF-selected-directories ul {
+  margin-bottom: 0 !important;
+}
+
+.sF-selected-directories li {
+  margin-bottom: 2px !important;
+}
+
 .sF-fileList>div.selected .sF-file-name div,
 .sF-dirList div.selected>.sF-file-name>div {
   color: white;

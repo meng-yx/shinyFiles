@@ -721,6 +721,24 @@ var shinyFiles = (function () {
     $(button).trigger('cancel');
   };
 
+  var showDuplicateSelectionNotification = function (modal) {
+    // Create a temporary notification to inform user about duplicate selection
+    var notification = $('<div class="alert alert-warning" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
+      '<button type="button" class="close" data-dismiss="alert">&times;</button>' +
+      '<strong>Directory already selected!</strong><br>This directory has already been added to your selection list.' +
+      '</div>');
+    
+    // Add to modal
+    modal.append(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(function() {
+      notification.fadeOut(function() {
+        notification.remove();
+      });
+    }, 3000);
+  };
+
   var updateSelectedDirectoriesDisplay = function (modal, selectedDirs) {
     var displayArea = modal.find('.sF-selected-directories');
     if (displayArea.length === 0) {
@@ -732,9 +750,29 @@ var shinyFiles = (function () {
     if (selectedDirs.length === 0) {
       displayArea.html('<em>No directories selected</em>');
     } else {
-      var html = '<strong>Selected directories (' + selectedDirs.length + '):</strong><ul style="margin-top: 5px;">';
-      selectedDirs.forEach(function(dir, index) {
-        html += '<li>' + dir + ' <button type="button" class="btn btn-xs btn-danger sF-remove-dir" data-index="' + index + '" style="margin-left: 5px;">Remove</button></li>';
+      // Remove duplicates for display purposes and clean up the data
+      var uniqueDirs = [];
+      var seenPaths = new Set();
+      
+      // First, clean up the actual data by removing duplicates
+      var cleanedSelections = selectedDirs.filter(function(dir) {
+        var dirString = Array.isArray(dir) ? dir.join('/') : dir;
+        if (!seenPaths.has(dirString)) {
+          seenPaths.add(dirString);
+          return true;
+        }
+        return false;
+      });
+      
+      // Update the stored data with cleaned version
+      var button = modal.data('button');
+      $(button).data('selectedDirectories', cleanedSelections);
+      
+      // Now display the unique directories
+      var html = '<strong>Selected directories (' + cleanedSelections.length + '):</strong><ul style="margin-top: 5px;">';
+      cleanedSelections.forEach(function(dir, index) {
+        var dirString = Array.isArray(dir) ? dir.join('/') : dir;
+        html += '<li>' + dirString + ' <button type="button" class="btn btn-xs btn-danger sF-remove-dir" data-index="' + index + '" style="margin-left: 5px;">Remove</button></li>';
       });
       html += '</ul>';
       displayArea.html(html);
@@ -742,14 +780,14 @@ var shinyFiles = (function () {
       // Add click handler for remove buttons
       displayArea.find('.sF-remove-dir').on('click', function() {
         var index = parseInt($(this).data('index'));
-        selectedDirs.splice(index, 1);
+        cleanedSelections.splice(index, 1);
         var button = modal.data('button');
-        $(button).data('selectedDirectories', selectedDirs);
-        updateSelectedDirectoriesDisplay(modal, selectedDirs);
+        $(button).data('selectedDirectories', cleanedSelections);
+        updateSelectedDirectoriesDisplay(modal, cleanedSelections);
         
         // Update the input
         var data = {
-          files: selectedDirs,
+          files: cleanedSelections,
           root: $(modal).data('currentData').selectedRoot
         };
         Shiny.onInputChange($(button).attr('id'), data);
@@ -780,25 +818,47 @@ var shinyFiles = (function () {
       if (multiple) {
         // Multiple selection mode - add to list and keep modal open
         var currentSelections = $(button).data('selectedDirectories') || [];
-        if (path && currentSelections.indexOf(path) === -1) {
-          currentSelections.push(path);
-          $(button).data('selectedDirectories', currentSelections);
+        
+        // Debug logging
+        console.log('Current path:', path);
+        console.log('Current selections:', currentSelections);
+        var pathString = path.join('/');
+        console.log('Current path string:', pathString);
+        console.log('Existing paths as strings:', currentSelections.map(p => Array.isArray(p) ? p.join('/') : p));
+        
+        if (path) {
+          // Convert path array to string for comparison
+          var pathString = path.join('/');
           
-          // Update the display to show selected directories
-          updateSelectedDirectoriesDisplay(modal, currentSelections);
+          // Check for duplicates more robustly
+          var isDuplicate = currentSelections.some(function(existingPath) {
+            var existingPathString = Array.isArray(existingPath) ? existingPath.join('/') : existingPath;
+            return existingPathString === pathString;
+          });
           
-          // Trigger selection event with current list
-          $(button).trigger('selection', [currentSelections]);
-          
-          // Update the input with current selections
-          var data = {
-            files: currentSelections,
-            root: $(modal).data('currentData').selectedRoot
-          };
-          Shiny.onInputChange($(button).attr('id'), data);
-          
-          // Clear the current selection after adding
-          modal.find('.sF-dirList .selected').removeClass('selected');
+          if (!isDuplicate) {
+            currentSelections.push(path);
+            $(button).data('selectedDirectories', currentSelections);
+            
+            // Update the display to show selected directories
+            updateSelectedDirectoriesDisplay(modal, currentSelections);
+            
+            // Trigger selection event with current list
+            $(button).trigger('selection', [currentSelections]);
+            
+            // Update the input with current selections
+            var data = {
+              files: currentSelections,
+              root: $(modal).data('currentData').selectedRoot
+            };
+            Shiny.onInputChange($(button).attr('id'), data);
+            
+            // Clear the current selection after adding
+            modal.find('.sF-dirList .selected').removeClass('selected');
+          } else {
+            // Directory already selected - show a brief notification
+            showDuplicateSelectionNotification(modal);
+          }
         }
       } else {
         // Single selection mode - close modal
