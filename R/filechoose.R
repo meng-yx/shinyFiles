@@ -75,7 +75,7 @@ fileGetter <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) 
     }
     
     selectedFile <- ""
-    if(file.exists(fulldir) && !dir.exists(fulldir)){
+    if(fs::file_exists(fulldir) && !fs::dir_exists(fulldir)){
       # dir is a normal file, not a directory
       # get the filename, and use it as the selectedFile
       selectedFile = sub(".*/(.*)$", "\\1", fulldir)
@@ -103,7 +103,7 @@ fileGetter <- function(roots, restrictions, filetypes, pattern, hidden = FALSE) 
     fileInfo <- suppressWarnings(file_info(files, fail = FALSE))
     fileInfo$filename <- path_file(files)
     fileInfo$extension <- tolower(path_ext(files))
-    fileInfo$isdir <- dir.exists(files)
+    fileInfo$isdir <- fs::dir_exists(files)
     fileInfo$mtime <- as.integer(fileInfo$modification_time) * 1000
     fileInfo$ctime <- as.integer(fileInfo$birth_time) * 1000
     fileInfo$atime <- as.integer(fileInfo$access_time) * 1000

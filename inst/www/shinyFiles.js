@@ -721,8 +721,45 @@ var shinyFiles = (function () {
     $(button).trigger('cancel');
   };
 
+  var updateSelectedDirectoriesDisplay = function (modal, selectedDirs) {
+    var displayArea = modal.find('.sF-selected-directories');
+    if (displayArea.length === 0) {
+      // Create the display area if it doesn't exist
+      displayArea = $('<div class="sF-selected-directories" style="margin-top: 10px; padding: 10px; background-color: #f5f5f5; border-radius: 5px;"></div>');
+      modal.find('.modal-body').append(displayArea);
+    }
+    
+    if (selectedDirs.length === 0) {
+      displayArea.html('<em>No directories selected</em>');
+    } else {
+      var html = '<strong>Selected directories (' + selectedDirs.length + '):</strong><ul style="margin-top: 5px;">';
+      selectedDirs.forEach(function(dir, index) {
+        html += '<li>' + dir + ' <button type="button" class="btn btn-xs btn-danger sF-remove-dir" data-index="' + index + '" style="margin-left: 5px;">Remove</button></li>';
+      });
+      html += '</ul>';
+      displayArea.html(html);
+      
+      // Add click handler for remove buttons
+      displayArea.find('.sF-remove-dir').on('click', function() {
+        var index = parseInt($(this).data('index'));
+        selectedDirs.splice(index, 1);
+        var button = modal.data('button');
+        $(button).data('selectedDirectories', selectedDirs);
+        updateSelectedDirectoriesDisplay(modal, selectedDirs);
+        
+        // Update the input
+        var data = {
+          files: selectedDirs,
+          root: $(modal).data('currentData').selectedRoot
+        };
+        Shiny.onInputChange($(button).attr('id'), data);
+      });
+    }
+  };
+
   var selectFiles = function (button, modal) {
     var type = $(button).hasClass('shinyDirectories') ? 'directory' : 'file';
+    var multiple = $(button).data('selecttype') === 'multiple';
 
     if (type == 'file') {
       var files = getSelectedFiles(modal);
@@ -735,17 +772,45 @@ var shinyFiles = (function () {
         })),
         root: files.root
       };
+      removeFileChooser(button, modal, data);
     } else {
+      // Directory selection
       var path = getPath($(modal).find('.sF-dirList .selected'));
-      $(button).data('directory', path)
-        .trigger('selection', path);
-      var data = {
-        path: path,
-        root: $(modal).data('currentData').selectedRoot
-      };
+      
+      if (multiple) {
+        // Multiple selection mode - add to list and keep modal open
+        var currentSelections = $(button).data('selectedDirectories') || [];
+        if (path && currentSelections.indexOf(path) === -1) {
+          currentSelections.push(path);
+          $(button).data('selectedDirectories', currentSelections);
+          
+          // Update the display to show selected directories
+          updateSelectedDirectoriesDisplay(modal, currentSelections);
+          
+          // Trigger selection event with current list
+          $(button).trigger('selection', [currentSelections]);
+          
+          // Update the input with current selections
+          var data = {
+            files: currentSelections,
+            root: $(modal).data('currentData').selectedRoot
+          };
+          Shiny.onInputChange($(button).attr('id'), data);
+          
+          // Clear the current selection after adding
+          modal.find('.sF-dirList .selected').removeClass('selected');
+        }
+      } else {
+        // Single selection mode - close modal
+        $(button).data('directory', path)
+          .trigger('selection', path);
+        var data = {
+          path: path,
+          root: $(modal).data('currentData').selectedRoot
+        };
+        removeFileChooser(button, modal, data);
+      }
     }
-
-    removeFileChooser(button, modal, data);
   };
 
   var setPermission = function (modal, writable) {
@@ -1831,6 +1896,11 @@ var shinyFiles = (function () {
     $(button).prop('disabled', true);
 
     initializeButton(button);
+    
+    // Initialize selected directories list for multiple selection
+    if ($(button).data('selecttype') === 'multiple') {
+      $(button).data('selectedDirectories', []);
+    }
 
     // Create the dialog
     var modal = $('<div>', { id: $(button).attr('id') + '-modal' }).addClass('sF-modalContainer modal fade').css('display', 'block').append(
@@ -1951,7 +2021,13 @@ var shinyFiles = (function () {
           $('<div>').addClass('sF-responseButtons modal-footer').append(
             $('<button>', { text: 'Cancel', type: 'button', id: 'sF-cancelButton' }).addClass('btn btn-default')
           ).append(
-            $('<button>', { text: 'Select', type: 'button', id: 'sF-selectButton' }).addClass('btn btn-primary')
+            $(button).data('selecttype') === 'multiple' ? 
+              $('<button>', { text: 'Add Directory', type: 'button', id: 'sF-selectButton' }).addClass('btn btn-success') :
+              $('<button>', { text: 'Select', type: 'button', id: 'sF-selectButton' }).addClass('btn btn-primary')
+          ).append(
+            $(button).data('selecttype') === 'multiple' ? 
+              $('<button>', { text: 'Done', type: 'button', id: 'sF-doneButton' }).addClass('btn btn-primary') : 
+              null
           )
         )
       )
@@ -1972,6 +2048,17 @@ var shinyFiles = (function () {
     })
     modal.find('.sF-responseButtons #sF-selectButton').on('click', function () {
       selectFiles(button, modal);
+    })
+    
+    // Handle Done button for multiple selection
+    modal.find('.sF-responseButtons #sF-doneButton').on('click', function () {
+      var currentSelections = $(button).data('selectedDirectories') || [];
+      var data = {
+        files: currentSelections,
+        root: $(modal).data('currentData').selectedRoot
+      };
+      $(button).trigger('selection', [currentSelections]);
+      removeFileChooser(button, modal, data);
     })
 
     //Folder Text Selection
@@ -2158,7 +2245,7 @@ var shinyFiles = (function () {
         toggleExpander($(this), modal, button);
       })
       .on('click', '.sF-file-icon, .sF-file-name', function (e) {
-        selectFolder($(this), modal, button);
+        selectFolder($(this), modal, button, e);
       })
 
     // Refresh
@@ -2355,7 +2442,7 @@ var shinyFiles = (function () {
     }
   };
 
-  var selectFolder = function (element, modal, button) {
+  var selectFolder = function (element, modal, button, event) {
     var deselect = element.closest('.sF-directory').hasClass('selected');
     var list = element.closest('.sF-dirList');
     list.find('.selected').toggleClass('selected');

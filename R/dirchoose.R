@@ -30,7 +30,7 @@ NULL
 #'
 traverseDirs <- function(tree, root, restrictions, hidden) {
   location <- path(root, tree$name)
-  if (!dir.exists(location)) return(NULL)
+  if (!fs::dir_exists(location)) return(NULL)
 
   files <- suppressWarnings(dir_ls(location, all = hidden, fail = FALSE))
 
@@ -47,7 +47,7 @@ traverseDirs <- function(tree, root, restrictions, hidden) {
     files <- files[keep]
   }
 
-  folders <- path_file(files[dir.exists(files)])
+  folders <- path_file(files[fs::dir_exists(files)])
 
   if (length(folders) == 0) {
     tree$empty <- TRUE
@@ -225,7 +225,7 @@ shinyDirChoose <- function(
       passedRoots <- list(...)$roots
       passedPathRoots <- if (inherits(passedRoots, "function")) passedRoots() else passedRoots
       passedPath <- list(passedPathRoots[tree$selectedRoot])
-      exist = dir.exists(do.call(path,c(passedPath,files$dir[-1])))
+      exist = fs::dir_exists(do.call(fs::path,c(passedPath,files$dir[-1])))
     }
     newDir <- do.call(dirGet, dir)
     if (.is_not(files$dir)) {
@@ -264,7 +264,7 @@ shinyDirChoose <- function(
 #' @export
 #'
 shinyDirButton <- function(
-  id, label, title, buttonType="default", 
+  id, label, title, multiple = FALSE, buttonType="default", 
   class=NULL, icon=NULL, style=NULL, ...
 ) {
   value <- restoreInput(id = id, default = NULL)
@@ -288,6 +288,7 @@ shinyDirButton <- function(
       class = paste(c("shinyDirectories btn", paste0("btn-", buttonType), class, "action-button"), collapse = " "),
       style = style,
       "data-title" = title,
+      "data-selecttype" = ifelse(multiple, "multiple", "single"),
       "data-val" = value,
       list(icon, as.character(label)),
       ...
@@ -302,7 +303,7 @@ shinyDirButton <- function(
 #'
 #' @export
 #'
-shinyDirLink <- function(id, label, title, class=NULL, icon=NULL, style=NULL, ...) {
+shinyDirLink <- function(id, label, title, multiple = FALSE, class=NULL, icon=NULL, style=NULL, ...) {
   value <- restoreInput(id = id, default = NULL)
   tagList(
     singleton(tags$head(
@@ -324,6 +325,7 @@ shinyDirLink <- function(id, label, title, class=NULL, icon=NULL, style=NULL, ..
       class = paste(c("shinyDirectories", class, "action-button"), collapse = " "),
       style = style,
       "data-title" = title,
+      "data-selecttype" = ifelse(multiple, "multiple", "single"),
       "data-val" = value,
       list(icon, as.character(label)),
       ...
@@ -344,6 +346,19 @@ parseDirPath <- function(roots, selection) {
   if (is.integer(selection)) {
     character(0)
   } else {
-    path(currentRoots[selection$root], paste0(selection$path, collapse = "/"))
+    # Handle multiple selections
+    if (is.list(selection) && "files" %in% names(selection)) {
+      # Multiple selections case
+      if (length(selection$files) == 0) {
+        character(0)
+      } else {
+        sapply(selection$files, function(x) {
+          path(currentRoots[selection$root], paste0(x, collapse = "/"))
+        })
+      }
+    } else {
+      # Single selection case (backward compatibility)
+      path(currentRoots[selection$root], paste0(selection$path, collapse = "/"))
+    }
   }
 }
