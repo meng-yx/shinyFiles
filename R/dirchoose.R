@@ -367,7 +367,14 @@ parseDirPath <- function(roots, selection) {
         character(0)
       } else {
         sapply(selection$files, function(x) {
-          path(currentRoots[selection$root], paste0(x, collapse = "/"))
+          # Check if x is a list with path and root (new format)
+          if (is.list(x) && "path" %in% names(x) && "root" %in% names(x)) {
+            # New format: each selection has its own root
+            path(currentRoots[x$root], paste0(x$path, collapse = "/"))
+          } else {
+            # Old format: all selections use the same root
+            path(currentRoots[selection$root], paste0(x, collapse = "/"))
+          }
         })
       }
     } else {

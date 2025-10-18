@@ -16,6 +16,7 @@ This changelog documents the modifications made to the shinyFiles package to add
 - **Scrollable selected directories list**: Limited height with custom scrollbar for better UX
 - **Larger modal interface**: Increased modal height to 90% viewport height for better usability
 - **Compact modal header**: Reduced header height and padding for more content space
+- **Fixed root directory bug**: Corrected issue where switching root directories caused incorrect absolute paths for previously selected directories
 
 ```css
 /* bslib compatibility fixes */
@@ -81,6 +82,30 @@ This changelog documents the modifications made to the shinyFiles package to add
 - **Responsive design**: Toolbar adapts to different modal widths
 - **Professional appearance**: Consistent with modern Shiny app styling
 - **Backward compatibility**: Existing apps continue to work unchanged
+
+#### 0.3 Critical Bug Fix: Root Directory Switching
+**Problem**: When users selected directories from one root (e.g., C: drive), then switched to another root (e.g., D: drive) and selected more directories, all previously selected directories would incorrectly use the new root directory, resulting in invalid absolute paths.
+
+**Solution**: 
+- **Enhanced data structure**: Each selected directory now stores both its relative path AND its original root directory
+- **Improved deduplication**: Duplicate checking now considers both path and root directory
+- **Updated R parsing**: `parseDirPath()` function now correctly handles the new data structure
+- **Better display**: Selected directories list shows both root name and relative path
+
+**Example**:
+```javascript
+// Before (buggy): All directories use current root
+[
+  ['folder1'],           // Would incorrectly use current root
+  ['folder2']            // Would incorrectly use current root
+]
+
+// After (fixed): Each directory remembers its original root
+[
+  {path: ['folder1'], root: 'C:'},  // Correctly uses C: drive
+  {path: ['folder2'], root: 'D:'}   // Correctly uses D: drive
+]
+```
 
 ### 1. R Code Modifications (`R/dirchoose.R`)
 

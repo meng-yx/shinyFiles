@@ -743,7 +743,7 @@ var shinyFiles = (function () {
     var displayArea = modal.find('.sF-selected-directories');
     if (displayArea.length === 0) {
       // Create the display area if it doesn't exist
-      displayArea = $('<div class="sF-selected-directories" style="margin-top: 10px; padding: 10px; background-color: #f5f5f5; border-radius: 5px;"></div>');
+      displayArea = $('<div class="sF-selected-directories" style="margin-top: 10px; padding: 10px;"></div>');
       modal.find('.modal-body').append(displayArea);
     }
     
@@ -755,10 +755,11 @@ var shinyFiles = (function () {
       var seenPaths = new Set();
       
       // First, clean up the actual data by removing duplicates
-      var cleanedSelections = selectedDirs.filter(function(dir) {
-        var dirString = Array.isArray(dir) ? dir.join('/') : dir;
-        if (!seenPaths.has(dirString)) {
-          seenPaths.add(dirString);
+      var cleanedSelections = selectedDirs.filter(function(selection) {
+        var dirString = Array.isArray(selection.path) ? selection.path.join('/') : selection.path;
+        var key = selection.root + ':' + dirString; // Include root in uniqueness check
+        if (!seenPaths.has(key)) {
+          seenPaths.add(key);
           return true;
         }
         return false;
@@ -770,9 +771,10 @@ var shinyFiles = (function () {
       
       // Now display the unique directories
       var html = '<strong>Selected directories (' + cleanedSelections.length + '):</strong><ul style="margin-top: 5px;">';
-      cleanedSelections.forEach(function(dir, index) {
-        var dirString = Array.isArray(dir) ? dir.join('/') : dir;
-        html += '<li>' + dirString + ' <button type="button" class="btn btn-xs btn-danger sF-remove-dir" data-index="' + index + '" style="margin-left: 5px;">Remove</button></li>';
+      cleanedSelections.forEach(function(selection, index) {
+        var dirString = Array.isArray(selection.path) ? selection.path.join('/') : selection.path;
+        var rootName = selection.root || 'Unknown';
+        html += '<li><strong>' + rootName + ':</strong> ' + dirString + ' <button type="button" class="btn btn-xs btn-danger sF-remove-dir" data-index="' + index + '" style="margin-left: 5px;">Remove</button></li>';
       });
       html += '</ul>';
       displayArea.html(html);
@@ -829,15 +831,21 @@ var shinyFiles = (function () {
         if (path) {
           // Convert path array to string for comparison
           var pathString = path.join('/');
+          var currentRoot = $(modal).data('currentData').selectedRoot;
           
-          // Check for duplicates more robustly
-          var isDuplicate = currentSelections.some(function(existingPath) {
-            var existingPathString = Array.isArray(existingPath) ? existingPath.join('/') : existingPath;
-            return existingPathString === pathString;
+          // Check for duplicates more robustly (check both path and root)
+          var isDuplicate = currentSelections.some(function(existingSelection) {
+            var existingPathString = Array.isArray(existingSelection.path) ? existingSelection.path.join('/') : existingSelection.path;
+            return existingPathString === pathString && existingSelection.root === currentRoot;
           });
           
           if (!isDuplicate) {
-            currentSelections.push(path);
+            // Store both path and root for each selection
+            var selection = {
+              path: path,
+              root: currentRoot
+            };
+            currentSelections.push(selection);
             $(button).data('selectedDirectories', currentSelections);
             
             // Update the display to show selected directories
