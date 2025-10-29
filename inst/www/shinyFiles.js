@@ -2008,37 +2008,9 @@ var shinyFiles = (function () {
                 )
               )
             ).append(
-              $('<div>').addClass('sF-sort dropdown btn-group btn-group-sm').append(
-                $('<button>', { id: 'sF-btn-sort', text: ' Sort directories' }).addClass('btn btn-default dropdown-toggle').prepend(
+              $('<div>').addClass('sF-sort btn-group btn-group-sm').append(
+                $('<button>', { id: 'sF-btn-sort', text: ' Sort directories' }).addClass('btn btn-default').prepend(
                   $('<span>').addClass('glyphicon glyphicon-sort-by-attributes')
-                )
-              ).append(
-                $('<ul>').addClass('dropdown-menu').append(
-                  $('<li>').addClass('sortAttr').append(
-                    $('<a>', { href: '#', text: 'Name' }).prepend($('<span>').addClass('glyphicon glyphicon-ok'))
-                  ).addClass($(button).data('sort') == 'Name' ? 'selected' : '')
-                ).append(
-                  $('<li>').addClass('sortAttr').append(
-                    $('<a>', { href: '#', text: 'Type' }).prepend($('<span>').addClass('glyphicon glyphicon-ok'))
-                  ).addClass($(button).data('sort') == 'Type' ? 'selected' : '')
-                ).append(
-                  $('<li>').addClass('sortAttr').append(
-                    $('<a>', { href: '#', text: 'Size' }).prepend($('<span>').addClass('glyphicon glyphicon-ok'))
-                  ).addClass($(button).data('sort') == 'Size' ? 'selected' : '')
-                ).append(
-                  $('<li>').addClass('sortAttr').append(
-                    $('<a>', { href: '#', text: 'Created' }).prepend($('<span>').addClass('glyphicon glyphicon-ok'))
-                  ).addClass($(button).data('sort') == 'Created' ? 'selected' : '')
-                ).append(
-                  $('<li>').addClass('sortAttr').append(
-                    $('<a>', { href: '#', text: 'Modified' }).prepend($('<span>').addClass('glyphicon glyphicon-ok'))
-                  ).addClass($(button).data('sort') == 'Modified' ? 'selected' : '')
-                ).append(
-                  $('<li>').addClass('divider')
-                ).append(
-                  $('<li>').addClass('sortDir').append(
-                    $('<a>', { href: '#', text: 'Sort direction' }).addClass($(button).data('sortDir')).prepend($('<span>').addClass('glyphicon glyphicon-arrow-down')).prepend($('<span>').addClass('glyphicon glyphicon-arrow-up'))
-                  )
                 )
               )
             ).append(
@@ -2291,22 +2263,13 @@ var shinyFiles = (function () {
       createFolder(name, modal);
     })
 
-    // Sort content
-    modal.find('.sF-sort').on('click', function () {
-      $(this).toggleClass('open')
-        .find('button').toggleClass('active');
+    // Sort directories: toggle sort direction by name
+    modal.find('#sF-btn-sort').on('click', function () {
+      var current = $(button).data('sortDir') || 'ascending';
+      var next = current === 'ascending' ? 'descending' : 'ascending';
+      $(modal).trigger('fileSort', ['Name', next]);
       return false;
     })
-    modal.find('.sF-sort ul')
-      .on('click', 'li.sortAttr', function () {
-        $(this).siblings('.sortAttr').removeClass('selected');
-        $(this).toggleClass('selected', true);
-        $(modal).trigger('fileSort', [$(this).find('a').text(), $(this).siblings('.sortDir').find('a').attr('class')])
-      })
-      .on('click', 'li.sortDir', function () {
-        $(this).find('a').toggleClass('ascending').toggleClass('descending')
-        $(modal).trigger('fileSort', [$(this).parent().find('.selected a').text(), $(this).find('a').attr('class')])
-      })
 
     // Set volume
     modal.find('.sF-breadcrumps').on('change', function () {
