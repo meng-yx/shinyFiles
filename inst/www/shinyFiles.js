@@ -662,42 +662,56 @@ var shinyFiles = (function () {
 
   var sortFiles = function (modal, attribute, direction) {
     var type = $($(modal).data('button')).hasClass('shinyDirectories') ? 'directory' : 'file';
-    var fileList;
+    var descending = direction == 'descending';
+
     if (type == 'file') {
-      fileList = $(modal).find('.sF-fileList');
-    } else {
-      fileList = $(modal).find('.sF-dirContent');
+      var fileList = $(modal).find('.sF-fileList');
+
+      fileList.sortChildren(function (elem) {
+        return $(elem).data('sF-file') ? $(elem).data('sF-file').name : '';
+      }, descending);
+
+      if (attribute == 'Name') return;
+
+      switch (attribute) {
+        case 'Type':
+          fileList.sortChildren(function (elem) {
+            return $(elem).data('sF-file') ? $(elem).data('sF-file').isDir ? '000' : $(elem).data('sF-file').extension || '001' : '';
+          }, descending);
+          break;
+        case 'Size':
+          fileList.sortChildren(function (elem) {
+            return $(elem).data('sF-file') ? $(elem).data('sF-file').isDir ? -1 : $(elem).data('sF-file').size : 0;
+          }, descending);
+          break;
+        case 'Created':
+          fileList.sortChildren(function (elem) {
+            return $(elem).data('sF-file') ? $(elem).data('sF-file').cTime : new Date();
+          }, descending);
+          break;
+        case 'Modified':
+          fileList.sortChildren(function (elem) {
+            return $(elem).data('sF-file') ? $(elem).data('sF-file').mTime : new Date();
+          }, descending);
+          break;
+      }
+      return;
     }
 
-
-    fileList.sortChildren(function (elem) {
-      return $(elem).data('sF-file') ? $(elem).data('sF-file').name : '';
-    }, direction == 'descending');
-
-    if (attribute == 'Name') return;
-
-    switch (attribute) {
-      case 'Type':
-        fileList.sortChildren(function (elem) {
-          return $(elem).data('sF-file') ? $(elem).data('sF-file').isDir ? '000' : $(elem).data('sF-file').extension || '001' : '';
-        }, direction == 'descending');
-        break;
-      case 'Size':
-        fileList.sortChildren(function (elem) {
-          return $(elem).data('sF-file') ? $(elem).data('sF-file').isDir ? -1 : $(elem).data('sF-file').size : 0;
-        }, direction == 'descending');
-        break;
-      case 'Created':
-        fileList.sortChildren(function (elem) {
-          return $(elem).data('sF-file') ? $(elem).data('sF-file').cTime : new Date();
-        }, direction == 'descending');
-        break;
-      case 'Modified':
-        fileList.sortChildren(function (elem) {
-          return $(elem).data('sF-file') ? $(elem).data('sF-file').mTime : new Date();
-        }, direction == 'descending');
-        break;
-    }
+    // Directory chooser: sort the directory tree siblings by name for each parent
+    $(modal).find('.sF-dirList .sF-content').each(function () {
+      var parent = $(this);
+      var children = parent.children();
+      if (children.length === 0) return;
+      var sorted = children.get().sort(function (a, b) {
+        var an = $(a).find('.sF-file-name>div').text().toLowerCase();
+        var bn = $(b).find('.sF-file-name>div').text().toLowerCase();
+        if (an < bn) return descending ? 1 : -1;
+        if (an > bn) return descending ? -1 : 1;
+        return 0;
+      });
+      parent.append(sorted);
+    });
   }
 
   var removeFileChooser = function (button, modal, data) {
@@ -1995,7 +2009,7 @@ var shinyFiles = (function () {
               )
             ).append(
               $('<div>').addClass('sF-sort dropdown btn-group btn-group-sm').append(
-                $('<button>', { id: 'sF-btn-sort', text: ' Sort content' }).addClass('btn btn-default dropdown-toggle').prepend(
+                $('<button>', { id: 'sF-btn-sort', text: ' Sort directories' }).addClass('btn btn-default dropdown-toggle').prepend(
                   $('<span>').addClass('glyphicon glyphicon-sort-by-attributes')
                 )
               ).append(
