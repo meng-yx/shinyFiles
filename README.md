@@ -5,6 +5,23 @@
 [![CRAN\_Release\_Badge](http://www.r-pkg.org/badges/version-ago/shinyFiles)](https://CRAN.R-project.org/package=shinyFiles) [![CRAN\_Download\_Badge](http://cranlogs.r-pkg.org/badges/shinyFiles)](https://CRAN.R-project.org/package=shinyFiles)
 <!-- badges: end -->
 
+## About this repository
+This project is a modified version of [`thomasp85/shinyFiles`](https://github.com/thomasp85/shinyFiles)
+by Thomas Lin Pedersen, licensed under the MIT License.
+
+Changes made in this fork include:
+
+- Added a tree-based file chooser that shows both directories and files.
+  - New server/API: `shinyFileChooseTree()`.
+  - New UI helper: `shinyFilesButtonTree()`.
+  - Backward-compatible with existing `shinyFilesButton`, `shinyFileChoose`, `shinyDirButton`, and `shinyDirChoose`.
+- Client updates to support the tree UI and behavior.
+  - New custom message handlers: `shinyFilesTree` and `shinyFilesTree-refresh` in `inst/www/shinyFiles.js`.
+  - Tree rendering, selection preservation on refresh, and multi-select support in the tree.
+  - Styling updates in `inst/www/styles.css`.
+- Example application demonstrating the new tree chooser alongside the originals: `test_tree_app.R`.
+
+## Readme
 This package extends the functionality of shiny by providing an API for client side access to the server file system. As many shiny apps are run locally this is equivalent to accessing the filesystem of the users own computer, without the overhead of copying files to temporary locations that is tied to the use of `fileInput()`.
 
 The package can be installed from CRAN using `install.packages('shinyFiles')`.
