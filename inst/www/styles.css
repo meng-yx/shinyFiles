@@ -158,7 +158,8 @@
 }
 
 .sF-fileList>div.selected .sF-file-name div,
-.sF-dirList div.selected>.sF-file-name>div {
+.sF-dirList div.selected>.sF-file-name>div,
+.sF-dirList div.multi-selected>.sF-file-name>div {
   color: white;
   background: steelblue;
   border-radius: 5px;

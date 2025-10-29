@@ -647,12 +647,18 @@ var shinyFiles = (function () {
   };
 
   var filesSelected = function (modal) {
-    var type = $($(modal).data('button')).hasClass('shinyDirectories') ? 'directory' : 'file';
+    var button = $($(modal).data('button'));
+    var type = button.hasClass('shinyDirectories') ? 'directory' : 'file';
+    var multiple = button.data('selecttype') === 'multiple';
 
     if (type == 'file') {
       return modal.find('.sF-fileList').children().filter('.sF-file.selected').length > 0;
     } else {
-      return modal.find('.sF-dirList').find('.selected').length > 0;
+      if (multiple) {
+        return modal.find('.sF-dirList').find('.multi-selected').length > 0;
+      } else {
+        return modal.find('.sF-dirList').find('.selected').length > 0;
+      }
     }
   };
 
@@ -825,56 +831,38 @@ var shinyFiles = (function () {
       removeFileChooser(button, modal, data);
     } else {
       // Directory selection
-      var path = getPath($(modal).find('.sF-dirList .selected'));
-      
       if (multiple) {
-        // Multiple selection mode - add to list and keep modal open
+        // Multiple selection mode - add all highlighted directories
         var currentSelections = $(button).data('selectedDirectories') || [];
-        
-        // Debug logging
-        console.log('Current path:', path);
-        console.log('Current selections:', currentSelections);
-        var pathString = path.join('/');
-        console.log('Current path string:', pathString);
-        console.log('Existing paths as strings:', currentSelections.map(p => Array.isArray(p) ? p.join('/') : p));
-        
-        if (path) {
-          // Convert path array to string for comparison
-          var pathString = path.join('/');
-          var currentRoot = $(modal).data('currentData').selectedRoot;
-          
-          // Check for duplicates more robustly (check both path and root)
+        var currentRoot = $(modal).data('currentData').selectedRoot;
+        var highlighted = $(modal).find('.sF-dirList .multi-selected');
+
+        // If no highlighted items, do nothing
+        if (highlighted.length === 0) {
+          toggleSelectButton(modal);
+          return;
+        }
+
+        highlighted.each(function () {
+          var p = getPath($(this));
+          var pathString = p.join('/');
           var isDuplicate = currentSelections.some(function(existingSelection) {
             var existingPathString = Array.isArray(existingSelection.path) ? existingSelection.path.join('/') : existingSelection.path;
-            return existingPathString === pathString && existingSelection.root === currentRoot;
+            return existingSelection.root === currentRoot && existingPathString === pathString;
           });
-          
           if (!isDuplicate) {
-            // Store both path and root for each selection
-            var selection = {
-              path: path,
-              root: currentRoot
-            };
-            currentSelections.push(selection);
-            $(button).data('selectedDirectories', currentSelections);
-            
-            // Update the display to show selected directories
-            updateSelectedDirectoriesDisplay(modal, currentSelections);
-            
-            // Trigger selection event with current list
-            $(button).trigger('selection', [currentSelections]);
-            
-            // Don't update Shiny server yet - wait for "Done" button
-            // The server will be updated when user clicks "Done"
-            
-            // Clear the current selection after adding
-            modal.find('.sF-dirList .selected').removeClass('selected');
-          } else {
-            // Directory already selected - show a brief notification
-            showDuplicateSelectionNotification(modal);
+            currentSelections.push({ path: p, root: currentRoot });
           }
-        }
+        });
+
+        $(button).data('selectedDirectories', currentSelections);
+        updateSelectedDirectoriesDisplay(modal, currentSelections);
+        $(button).trigger('selection', [currentSelections]);
+
+        // Keep highlights; user may want to add more or adjust selection
+        toggleSelectButton(modal);
       } else {
+        var path = getPath($(modal).find('.sF-dirList .selected'));
         // Single selection mode - close modal
         $(button).data('directory', path)
           .trigger('selection', path);
@@ -2396,6 +2384,22 @@ var shinyFiles = (function () {
     setExists(modal, data.exist);
 
     modal.data('currentData', data);
+
+    // Re-apply multi-select highlights after rerender
+    var highlightedKeys = modal.data('highlightedKeys') || {};
+    if (highlightedKeys && Object.keys(highlightedKeys).length > 0) {
+      var list = modal.find('.sF-dirList');
+      var allRows = list.find('.sF-directory');
+      function keyFor(r) {
+        var p = getPath($(r)).join('/');
+        var root = $(modal).data('currentData').selectedRoot;
+        return root + ':' + p;
+      }
+      allRows.each(function () {
+        var k = keyFor(this);
+        if (highlightedKeys[k]) $(this).addClass('multi-selected');
+      });
+    }
     $(modal).trigger('change');
   };
 
@@ -2480,9 +2484,74 @@ var shinyFiles = (function () {
   };
 
   var selectFolder = function (element, modal, button, event) {
-    var deselect = element.closest('.sF-directory').hasClass('selected');
     var list = element.closest('.sF-dirList');
-    list.find('.selected').toggleClass('selected');
+    var row = element.closest('.sF-directory');
+    var multiple = $(button).data('selecttype') === 'multiple';
+
+    // Manage focus (single .selected) always moves to clicked row
+    list.find('.selected').removeClass('selected');
+    row.addClass('selected');
+
+    // Multi-select highlight management
+    if (multiple && event) {
+      var allRows = list.find('.sF-directory');
+      var currentIndex = allRows.index(row);
+      var highlightedKeys = modal.data('highlightedKeys') || {};
+
+      function keyFor(r) {
+        var p = getPath($(r)).join('/');
+        var root = $(modal).data('currentData').selectedRoot;
+        return root + ':' + p;
+      }
+
+      if (event.shiftKey) {
+        var anchorIndex = modal.data('anchorIndex');
+        if (anchorIndex === undefined || anchorIndex === null) {
+          // No anchor yet; treat as plain click and set anchor
+          highlightedKeys = {};
+          highlightedKeys[keyFor(row)] = true;
+          modal.data('anchorIndex', currentIndex);
+        } else {
+          var start = Math.min(anchorIndex, currentIndex);
+          var end = Math.max(anchorIndex, currentIndex);
+          highlightedKeys = highlightedKeys || {};
+          for (var i = start; i <= end; i++) {
+            var r = allRows.get(i);
+            highlightedKeys[keyFor(r)] = true;
+          }
+        }
+      } else if (event.metaKey || event.ctrlKey) {
+        // Toggle the clicked row in the highlight set
+        var k = keyFor(row);
+        if (highlightedKeys[k]) {
+          delete highlightedKeys[k];
+        } else {
+          highlightedKeys[k] = true;
+        }
+        // Set new anchor at this row
+        modal.data('anchorIndex', currentIndex);
+      } else {
+        // Plain click: clear all highlights and select only clicked
+        highlightedKeys = {};
+        highlightedKeys[keyFor(row)] = true;
+        modal.data('anchorIndex', currentIndex);
+      }
+
+      // Apply visual highlights
+      list.find('.multi-selected').removeClass('multi-selected');
+      allRows.each(function () {
+        var k = keyFor(this);
+        if (highlightedKeys[k]) $(this).addClass('multi-selected');
+      });
+
+      modal.data('highlightedKeys', highlightedKeys);
+      toggleSelectButton(modal);
+    } else {
+      // Single mode: clicking toggles only focus; no multi-highlight
+      list.find('.multi-selected').removeClass('multi-selected');
+      modal.removeData('highlightedKeys');
+      modal.removeData('anchorIndex');
+    }
 
     function scrollToSelected() {
       var modal = $('.sF-modalContainer');
@@ -2504,13 +2573,8 @@ var shinyFiles = (function () {
       } // NOTE: Only handle directory modal
     }
 
-    if (deselect) {
-      var path = null;
-    } else {
-      var path = getPath(element);
-      element.closest('.sF-directory').toggleClass('selected');
-      scrollToSelected();
-    }
+    var path = getPath(element);
+    scrollToSelected();
 
     setDisabledButtons(button, modal);
     toggleSelectButton(modal);

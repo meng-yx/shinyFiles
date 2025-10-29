@@ -5,6 +5,15 @@
 [![CRAN\_Release\_Badge](http://www.r-pkg.org/badges/version-ago/shinyFiles)](https://CRAN.R-project.org/package=shinyFiles) [![CRAN\_Download\_Badge](http://cranlogs.r-pkg.org/badges/shinyFiles)](https://CRAN.R-project.org/package=shinyFiles)
 <!-- badges: end -->
 
+## About this repository
+This project is a modified version of [`thomasp85/shinyFiles`](https://github.com/thomasp85/shinyFiles)
+by Thomas Lin Pedersen, licensed under the MIT License.
+
+Changes made in this fork include:
+- Added multi-folder selection support to shinyDirButton/shinyDirChoose
+- Improved UI integration for multi-folder selection logic
+
+## Readme
 This package extends the functionality of shiny by providing an API for client side access to the server file system. As many shiny apps are run locally this is equivalent to accessing the filesystem of the users own computer, without the overhead of copying files to temporary locations that is tied to the use of `fileInput()`.
 
 The package can be installed from CRAN using `install.packages('shinyFiles')`.
